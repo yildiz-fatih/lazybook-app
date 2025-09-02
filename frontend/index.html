@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>lazybook</title>
+</head>
+
+<body>
+    <h1>lazybook</h1>
+
+    <h2>Create user</h2>
+    <form id="create-user">
+        <input id="username" type="text" placeholder="username (e.g., alicexyz)" />
+        <button type="submit">Create</button>
+    </form>
+    <div id="create-msg"></div>
+
+    <h2>Users</h2>
+    <ul id="users"></ul>
+
+    <script>
+        const API = "http://localhost:8000";
+
+        // Fetch and render users
+        async function refreshUsers() {
+            const res = await fetch(`${API}/users`);
+            const list = document.getElementById('users');
+            list.innerHTML = '';
+            if (!res.ok) return;
+            const data = await res.json();
+            for (const u of data) {
+                const li = document.createElement('li');
+                li.textContent = `${u.id}: ${u.username}`;
+                list.appendChild(li);
+            }
+        }
+
+        // Handle user creation form
+        document.getElementById('create-user').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value.trim();
+            const msg = document.getElementById('create-msg');
+            msg.textContent = '';
+            if (!username) return;
+
+            try {
+                const res = await fetch(`${API}/users`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ username })
+                });
+                if (res.status === 201) {
+                    msg.textContent = 'Created.';
+                    msg.className = 'ok';
+                    document.getElementById('username').value = '';
+                    refreshUsers();
+                } else {
+                    const j = await res.json().catch(() => ({}));
+                    msg.textContent = j.detail || `Error: ${res.status}`;
+                    msg.className = 'err';
+                }
+            } catch (e2) {
+                msg.textContent = 'Network error';
+                msg.className = 'err';
+            }
+        });
+
+        refreshUsers();
+    </script>
+</body>
+
+</html>
