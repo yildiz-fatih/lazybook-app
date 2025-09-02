@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>login - lazybook</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <h1>log in</h1>
+    <hr>
+    <form id="login-form">
+        username: <input id="username" required><br>
+        password: <input id="password" type="password" required><br>
+        <input id="submit" type="submit" value="login">
+        <hr>
+        <p>don't have an account? <a href="./register.html">register</a></p>
+    </form>
+
+    <script>
+        const API = "http://localhost:8000";
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); // stop normal form submission
+            const btn = document.getElementById('submit');
+            btn.disabled = true;
+
+            try {
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value;
+                const res = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!res.ok) {
+                    alert('login failed');
+                    btn.disabled = false;
+                    return;
+                }
+
+                const { access_token } = await res.json();
+                localStorage.setItem('lazy_token', access_token);
+                window.location.replace(`/index.html`);
+            } catch (e) {
+                alert('network error');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>register - lazybook</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <h1>register</h1>
+    <hr>
+    <form id="register-form">
+        username: <input required id="username"><br>
+        password: <input required id="password" type="password"><br>
+        confirm : <input required id="confirm" type="password"><br>
+        <input id="submit" type="submit" value="register">
+        <hr>
+        <p>already have an account? <a href="./login.html">log in</a></p>
+    </form>
+
+    <script>
+        const API = "http://localhost:8000";
+
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();  // stop normal form submission
+            const btn = document.getElementById('submit');
+            btn.disabled = true;
+            const u = document.getElementById('username').value.trim();
+            const p1 = document.getElementById('password').value;
+            const p2 = document.getElementById('confirm').value;
+
+            if (p1 !== p2) {
+                alert("passwords do not match");
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API}/auth/register`, {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ username: u, password: p1 })
+                });
+
+                if (res.status === 201) {
+                    alert('registered');
+                    window.location.replace(`./login.html`);
+                    return;
+                }
+
+                alert('registration failed');
+                btn.disabled = false;
+            } catch (e) {
+                alert('network error');
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+
+</html>
