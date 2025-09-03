@@ -5,52 +5,97 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>lazybook</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
-    <h1>lazybook</h1>
-    <br />
+    <!-- Guest (not logged in) view -->
+    <div id="guest" class="guest" style="display:none">
+        <h1>lazybook</h1>
+        <hr>
+        <p>welcome — <a href="./login.html">log in</a> / <a href="./register.html">register</a></p>
+    </div>
 
-    <p id="authbar"></p>
+    <!-- App (logged in) view -->
+    <div id="app" style="display:none">
+        <div class="topbar">
+            <p>logged in as: <b id="me-link"></b></p>
+            <button id="logout">logout</button>
+        </div>
+        <hr>
 
+        <h2>New people:</h2>
+        <div id="new-people" class="list"></div>
+    </div>
+
+    <script src="./common.js"></script>
     <script>
-        function authBar() {
-            const bar = document.getElementById('authbar');
-            const token = localStorage.getItem('lazy_token');
+        function showGuest() {
+            document.getElementById('guest').style.display = '';
+            document.getElementById('app').style.display = 'none';
+        }
 
-            bar.textContent = '';
+        function showApp() {
+            document.getElementById('guest').style.display = 'none';
+            document.getElementById('app').style.display = '';
+        }
 
-            if (!token) {
-                const notLoggedInText = document.createTextNode('not logged in -> ');
-                const loginLink = document.createElement('a');
-                loginLink.href = './login.html';
-                loginLink.textContent = 'log in';
+        async function loadAllUsers() {
+            try {
+                const res = await authFetch(`${API}/users`);
+                if (!res.ok) {
+                    alert('could not load users');
+                    return;
+                }
+                const arr = await res.json();
+                const box = document.getElementById('new-people');
+                box.innerHTML = '';
+                for (const u of arr) {
+                    const a = document.createElement('a');
+                    a.href = `./user.html?id=${u.id}`;
+                    a.textContent = u.username;
+                    const div = document.createElement('div');
+                    div.appendChild(a);
+                    box.appendChild(div);
+                }
+            } catch {
+                alert('network error (users)');
+            }
+        }
 
-                const separatorText = document.createTextNode(' / ');
+        // Logout stays on index, swaps to guest view
+        document.getElementById('logout').addEventListener('click', () => {
+            clearToken();
+            showGuest();
+        });
 
-                const registerLink = document.createElement('a');
-                registerLink.href = './register.html';
-                registerLink.textContent = 'register';
-
-                bar.append(notLoggedInText, loginLink, separatorText, registerLink);
+        // Boot: decide which view to show
+        async function init() {
+            if (!getToken()) {
+                showGuest();
                 return;
             }
 
-            const loggedInText = document.createTextNode('logged in — ');
+            const me = await getMe();
+            if (!me) {
+                clearToken();
+                showGuest();
+                return;
+            }
 
-            const logoutButton = document.createElement('button');
-            logoutButton.id = 'logout';
-            logoutButton.textContent = 'logout';
-            logoutButton.addEventListener('click', () => {
-                localStorage.removeItem('lazy_token');
-                location.reload();
-            });
+            // Populate "me"
+            const meLink = document.getElementById('me-link');
+            meLink.textContent = '';
+            const a = document.createElement('a');
+            a.href = `./user.html?id=${me.id}`;
+            a.textContent = me.username;
+            meLink.appendChild(a);
 
-            bar.append(loggedInText, logoutButton);
+            showApp();
+            loadAllUsers();
         }
 
-        authBar(); // called on page load
+        init();
     </script>
 </body>
 

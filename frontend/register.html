@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>register - lazybook</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="./styles.css">
 </head>
 
 <body>
@@ -20,9 +20,8 @@
         <p>already have an account? <a href="./login.html">log in</a></p>
     </form>
 
+    <script src="./common.js"></script>
     <script>
-        const API = "http://localhost:8000";
-
         document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();  // stop normal form submission
             const btn = document.getElementById('submit');
@@ -33,6 +32,7 @@
 
             if (p1 !== p2) {
                 alert("passwords do not match");
+                btn.disabled = false;
                 return;
             }
 

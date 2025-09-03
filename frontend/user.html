@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>user - lazybook</title>
+    <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+    <h1 id="name"></h1>
+    <p id="status"></p>
+
+    <!-- Only visible on your own profile -->
+    <form id="status-form" style="display:none">
+        change status: <input id="status-input">
+        <input id="submit" type="submit" value="save">
+    </form>
+    <hr>
+
+    <div id="followinfo"></div>
+
+    <hr>
+    <h3>Followers</h3>
+    <div id="followers" class="list"></div>
+
+    <hr>
+    <h3>Following</h3>
+    <div id="following" class="list"></div>
+
+    <script src="./common.js"></script>
+    <script>
+        // Require token; redirect if missing
+        if (!getToken()) {
+            window.location.replace('/login.html');
+        }
+
+        // Parse user id from query string
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = parseInt(urlParams.get('id'), 10);
+
+        async function getMeOrRedirect() {
+            const me = await getMe();
+            if (!me) {
+                alert('please log in');
+                window.location.replace('/login.html');
+                throw new Error('unauthorized');
+            }
+            return me;
+        }
+
+        // ---- profile ----
+        async function loadUserList(type) { // type is either "following" or "followers"
+            const box = document.getElementById(type); // element ID matches type
+            box.innerHTML = '';
+
+            try {
+                const res = await authFetch(`${API}/users/${userId}/${type}`);
+                if (!res.ok) {
+                    alert(`could not load ${type}`);
+                    return;
+                }
+                const users = await res.json();
+                for (const u of users) {
+                    const a = document.createElement('a');
+                    a.href = `/user.html?id=${u.id}`;
+                    a.textContent = u.username;
+                    box.appendChild(a);
+                }
+            } catch {
+                alert('network error');
+            }
+        }
+
+        async function loadProfile() {
+            try {
+                // get current user + target profile in parallel
+                const [meData, resProfile] = await Promise.all([
+                    getMeOrRedirect(),
+                    authFetch(`${API}/users/${userId}`)
+                ]);
+
+                if (!resProfile.ok) {
+                    alert('could not load profile');
+                    return;
+                }
+                const prof = await resProfile.json();
+
+                // always display current status
+                document.getElementById('status').textContent = prof.status || '';
+
+                // username
+                document.getElementById('name').textContent = prof.username;
+
+                const isMe = meData.id === prof.id;
+
+                if (isMe) {
+                    document.getElementById('status-form').style.display = "block";
+                    document.getElementById('status-input').value = prof.status || '';
+                } else {
+                    setupFollowButtons(prof.iFollow, prof.follows);
+                }
+
+                // load both lists
+                loadUserList('followers');
+                loadUserList('following')
+            } catch (e) {
+                // alerts already shown where relevant
+            }
+        }
+
+        // follow / unfollow UI + action
+        function setupFollowButtons(iFollow, followsYou) {
+            const el = document.getElementById('followinfo');
+            el.innerHTML = '';
+
+            if (followsYou) {
+                const p = document.createElement('p');
+                p.textContent = 'follows you';
+                el.appendChild(p);
+            }
+
+            const btn = document.createElement('button');
+            btn.textContent = iFollow ? 'unfollow' : 'follow';
+            btn.onclick = async () => {
+                try {
+                    const res = await authFetch(`${API}/follow`, {
+                        method: 'POST',
+                        body: JSON.stringify({ whom: userId, action: !iFollow })
+                    });
+                    if (!res.ok) {
+                        alert('follow action failed');
+                        return;
+                    }
+                    // refresh profile + lists
+                    loadProfile();
+                } catch {
+                    alert('network error (follow)');
+                }
+            };
+            el.appendChild(btn);
+        }
+
+        document.getElementById('status-form').addEventListener('submit', async (e) => {
+            e.preventDefault(); // stop normal form submission
+
+            const btn = document.getElementById('submit');
+            btn.disabled = true;
+            const statusVal = document.getElementById('status-input').value.trim();
+
+            try {
+                const res = await authFetch(`${API}/users/status`, {
+                    method: 'POST',
+                    body: JSON.stringify({ status: statusVal })
+                });
+
+                if (!res.ok) {
+                    alert('status update failed');
+                    btn.disabled = false;
+                    return;
+                }
+
+                btn.disabled = false;
+                loadProfile();
+            } catch {
+                alert('network error');
+                btn.disabled = false;
+            }
+        });
+
+        // boot
+        loadProfile();
+    </script>
+</body>
+
+</html>

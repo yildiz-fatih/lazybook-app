@@ -19,9 +19,8 @@
         <p>don't have an account? <a href="./register.html">register</a></p>
     </form>
 
+    <script src="./common.js"></script>
     <script>
-        const API = "http://localhost:8000";
-
         document.getElementById('login-form').addEventListener('submit', async (e) => {
             e.preventDefault(); // stop normal form submission
             const btn = document.getElementById('submit');
@@ -43,8 +42,8 @@
                 }
 
                 const { access_token } = await res.json();
-                localStorage.setItem('lazy_token', access_token);
-                window.location.replace(`/index.html`);
+                setToken(access_token);
+                window.location.replace(`./index.html`);
             } catch (e) {
                 alert('network error');
                 btn.disabled = false;
