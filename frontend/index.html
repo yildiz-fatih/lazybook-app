@@ -24,8 +24,14 @@
         </div>
         <hr>
 
-        <h2>New people:</h2>
+        <h2>new people:</h2>
         <div id="new-people" class="list"></div>
+        <hr>
+
+        <h2>posts from people you follow:</h2>
+        <div id="feed"></div>
+
+
     </div>
 
     <script src="./common.js"></script>
@@ -41,26 +47,28 @@
         }
 
         async function loadAllUsers() {
-            try {
-                const res = await authFetch(`${API}/users`);
-                if (!res.ok) {
-                    alert('could not load users');
-                    return;
-                }
-                const arr = await res.json();
-                const box = document.getElementById('new-people');
-                box.innerHTML = '';
-                for (const u of arr) {
-                    const a = document.createElement('a');
-                    a.href = `./user.html?id=${u.id}`;
-                    a.textContent = u.username;
-                    const div = document.createElement('div');
-                    div.appendChild(a);
-                    box.appendChild(div);
-                }
-            } catch {
-                alert('network error (users)');
+            const res = await authFetch(`${API}/users`);
+            if (!res.ok) return;
+            const arr = await res.json();
+            const box = document.getElementById('new-people');
+            box.innerHTML = '';
+            for (const u of arr) {
+                const a = document.createElement('a');
+                a.href = `./user.html?id=${u.id}`;
+                a.textContent = u.username;
+                const div = document.createElement('div');
+                div.appendChild(a);
+                box.appendChild(div);
             }
+        }
+
+        async function loadFeed() {
+            const res = await authFetch(`${API}/feed`);
+            if (!res.ok) return;
+            const items = await res.json();
+            const box = document.getElementById('feed');
+            box.innerHTML = '';
+            for (const p of items) box.appendChild(renderPost(p));
         }
 
         // Logout stays on index, swaps to guest view
@@ -71,17 +79,9 @@
 
         // Boot: decide which view to show
         async function init() {
-            if (!getToken()) {
-                showGuest();
-                return;
-            }
-
+            if (!getToken()) { showGuest(); return; }
             const me = await getMe();
-            if (!me) {
-                clearToken();
-                showGuest();
-                return;
-            }
+            if (!me) { clearToken(); showGuest(); return; }
 
             // Populate "me"
             const meLink = document.getElementById('me-link');
@@ -92,6 +92,7 @@
             meLink.appendChild(a);
 
             showApp();
+            loadFeed();
             loadAllUsers();
         }
 

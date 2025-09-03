@@ -23,3 +23,37 @@ async function getMe() {
         return null;
     }
 }
+
+// Pretty-print a single post
+function renderPost(post) {
+    const postContainer = document.createElement('div');
+
+    const postHeader = document.createElement('div');
+
+    // Create username link
+    const usernameLink = document.createElement('a');
+    usernameLink.href = `./user.html?id=${post.user_id}`;
+    usernameLink.textContent = post.username;
+    postHeader.appendChild(usernameLink);
+
+    // Create timestamp
+    const timestampElement = document.createElement('small');
+    const formattedDate = new Date(post.created_at).toLocaleString();
+    timestampElement.textContent = ` ${formattedDate}`;
+    postHeader.appendChild(timestampElement);
+
+    // Create post content
+    const postContent = document.createElement('p');
+    postContent.style.wordBreak = 'break-word';
+    postContent.textContent = post.contents || '';
+    postHeader.appendChild(postContent);
+
+    // Assemble
+    postContainer.appendChild(postHeader);
+
+    // Add horizontal separator
+    const separator = document.createElement('hr');
+    postContainer.appendChild(separator);
+
+    return postContainer;
+}

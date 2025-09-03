@@ -4,8 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from .database import engine, get_db
-from .models import Base, User, Follow
+from .models import Base, User, Follow, Post
 from .auth import hash_password, verify_password, generate_access_token, get_current_user
+from sqlalchemy import desc
 
 app = FastAPI()
 
@@ -46,6 +47,16 @@ class UserOutDetailed(BaseModel):
     status: str = ""
     iFollow: bool
     follows: bool
+
+class PostCreate(BaseModel):
+    contents: str = Field(..., max_length=1024)
+
+class PostOut(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    contents: str
+    created_at: str
 
 # --- Auth routes ---
 @app.post("/auth/register", status_code=201)
@@ -157,3 +168,63 @@ def follow_action(payload: FollowIn, db: Session = Depends(get_db), me: User = D
         db.delete(existing_follow)
         db.commit()
         return {"success": True, "detail": "successfully unfollowed"}
+
+@app.post("/posts")
+def create_post(payload: PostCreate, db: Session = Depends(get_db), me: User = Depends(get_current_user)):
+    contents = payload.contents.strip()
+    if len(contents) == 0 or len(contents) > 1024:
+        raise HTTPException(status_code=400, detail="content must be 1-1024 characters")
+    
+    p = Post(user_id=me.id, contents=contents)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return PostOut(
+        id=p.id,
+        user_id=p.user_id,
+        username=me.username,
+        contents=p.contents,
+        created_at=p.created_at.isoformat(),
+    )
+
+@app.get("/users/{user_id}/posts")
+def user_posts(user_id: int, db: Session = Depends(get_db), me: User = Depends(get_current_user)):
+    q = (
+        db.query(Post, User.username)
+        .join(User, User.id == Post.user_id)
+        .filter(Post.user_id == user_id)
+        .order_by(desc(Post.created_at))
+        .all()
+    )
+    return [
+        PostOut(
+            id=p.id,
+            user_id=p.user_id,
+            username=username,
+            contents=p.contents,
+            created_at=p.created_at.isoformat(),
+        )
+        for (p, username) in q
+    ]
+
+@app.get("/feed")
+def get_the_feed(db: Session = Depends(get_db), me: User = Depends(get_current_user)):
+    q = (
+        db.query(Post, User.username)
+        .join(User, User.id == Post.user_id)
+        .join(Follow, Follow.followee_id == Post.user_id)
+        .filter(Follow.follower_id == me.id)
+        .order_by(desc(Post.created_at))
+        .all()
+    )
+
+    return [
+        PostOut(
+            id=p.id,
+            user_id=p.user_id,
+            username=username,
+            contents=p.contents,
+            created_at=p.created_at.isoformat(),
+        )
+        for (p, username) in q
+    ]

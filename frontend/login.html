@@ -26,28 +26,23 @@
             const btn = document.getElementById('submit');
             btn.disabled = true;
 
-            try {
-                const username = document.getElementById('username').value.trim();
-                const password = document.getElementById('password').value;
-                const res = await fetch(`${API}/auth/login`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ username, password })
-                });
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const res = await fetch(`${API}/auth/login`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
 
-                if (!res.ok) {
-                    alert('login failed');
-                    btn.disabled = false;
-                    return;
-                }
-
-                const { access_token } = await res.json();
-                setToken(access_token);
-                window.location.replace(`./index.html`);
-            } catch (e) {
-                alert('network error');
+            if (!res.ok) {
+                alert('login failed');
                 btn.disabled = false;
+                return;
             }
+
+            const { access_token } = await res.json();
+            setToken(access_token);
+            window.location.replace(`./index.html`);
         });
     </script>
 </body>

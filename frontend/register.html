@@ -36,25 +36,20 @@
                 return;
             }
 
-            try {
-                const res = await fetch(`${API}/auth/register`, {
-                    method: 'POST',
-                    headers: { 'content-type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p1 })
-                });
+            const res = await fetch(`${API}/auth/register`, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ username: u, password: p1 })
+            });
 
-                if (res.status === 201) {
-                    alert('registered');
-                    window.location.replace(`./login.html`);
-                    return;
-                }
-
-                alert('registration failed');
-                btn.disabled = false;
-            } catch (e) {
-                alert('network error');
-                btn.disabled = false;
+            if (res.status === 201) {
+                alert('registered');
+                window.location.replace(`./login.html`);
+                return;
             }
+
+            alert('registration failed');
+            btn.disabled = false;
         });
     </script>
 </body>
