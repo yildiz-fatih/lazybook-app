@@ -2,10 +2,10 @@ import os
 import time
 import bcrypt
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, WebSocketException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
-from .database import get_db
+from sqlalchemy.ext.asyncio import AsyncSession
+from .database import get_db_async
 from .models import User
 
 # Loads .env
@@ -29,27 +29,46 @@ def verify_password(raw_password: str, hashed: str) -> bool:
 
 # Creates and returns a JWT containing the user’s ID, username, and expiration details
 def generate_access_token(user_id: int, username: str) -> str:
-    issued_at_seconds = int(time.time())
-    expiration_seconds = issued_at_seconds + (15 * 60) # expires in 15 mins
+    now = int(time.time())
+
     payload = {
         "sub": str(user_id),
         "name": username,
-        "iat": issued_at_seconds,
-        "exp": expiration_seconds,
+        "iat": now,
+        "exp": now + (15 * 60), # expires in 15 mins
         "typ": "access"
     }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
-# Extracts and verifies JWT from Authorization header, returns the authenticated user
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer_scheme), db: Session = Depends(get_db),) -> User:
+# --- Used by HTTP endpoints ---
+# Verifies JWT (given as a string), returns the authenticated user
+async def get_current_user_dep(creds: HTTPAuthorizationCredentials = Depends(bearer_scheme), db: AsyncSession = Depends(get_db_async)) -> User:
     if creds is None or creds.scheme.lower() != "bearer":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="missing bearer token")
     
-    data = jwt.decode(creds.credentials, JWT_SECRET, algorithms=["HS256"])
-    user_id = int(data.get("sub"))
+    try:
+        data = jwt.decode(creds.credentials, JWT_SECRET, algorithms=["HS256"])
+        user_id = int(data.get("sub"))
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid credentials")
     
-    user = db.get(User, user_id)
+    user = await db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user not found")
+    
+    return user
+
+# --- Used by WebSockets endpoints ---
+# Verifies JWT (given as a string), returns the authenticated user
+async def get_current_user_ws(token: str, db: AsyncSession) -> User: # since this function is not a FastAPI dependency, 'db' is passed by the client of the function
+    try:
+        data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        user_id = int(data.get("sub"))
+    except jwt.InvalidTokenError:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
+
+    user = await db.get(User, user_id)
+    if not user:
+        raise WebSocketException(code=status.WS_1008_POLICY_VIOLATION)
     
     return user
